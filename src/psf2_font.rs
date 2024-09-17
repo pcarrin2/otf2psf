@@ -1,12 +1,8 @@
 use std::error;
-use std::fs;
 use std::io::BufRead;
 use std::iter::once;
-use std::path::Path;
-use bitvec::view::BitView;
-use bitvec::prelude::Msb0;
 use itertools::Itertools;
-use log::{error, warn, info, debug, trace};
+use log::{warn, info, trace, Level};
 use unicode_segmentation::UnicodeSegmentation;
 use regex::Regex;
 use ab_glyph::{FontRef, PxScaleFont};
@@ -108,7 +104,7 @@ impl Psf2GlyphSet {
             .unique().collect();
         let [(height, width, length)] = heights_widths_lengths.as_slice() else {
             println!("{heights_widths_lengths:?}");
-            println!("{glyph_set:?}");
+            // println!("{glyph_set:?}");
             return Err("Different glyphs in the generated glyph set have different dimensions. Make sure this is a monospace font.".into());
         }; // TODO make this an error for real
         Ok(Psf2GlyphSet{glyphs: glyph_set, height: *height, width: *width, length: *length})
@@ -140,7 +136,8 @@ impl Psf2Glyph {
     /// Creates a new glyph bitmap, given a single Unicode grapheme, an ab_glyph font, 
     /// and a target font height in pixels.
     pub fn new(grapheme: &str, font: &PxScaleFont<FontRef>) -> Result<Psf2Glyph, Box<dyn error::Error>> {
-        trace!("Creating bitmap for '{grapheme}'.");
+        let gr_unicode = grapheme.escape_unicode();
+        trace!("Creating bitmap for '{grapheme}' ({gr_unicode}).");
         let graphemes_count = UnicodeSegmentation::graphemes(grapheme, true).count();
         if graphemes_count != 1 {
             warn!("The Unicode sequence {grapheme} in the Unicode table encodes zero or multiple graphemes.");
@@ -157,18 +154,22 @@ impl Psf2Glyph {
 
         canvas = canvas.convert_format(&ab_glyph::GlyphImageFormat::BitmapMono)?;
         
+        canvas.clone().draw_to_ascii_art(Level::Trace)?; //TODO: this sucks make it suck less
+
         let width = canvas.width;
         let height = canvas.height;
         let length = canvas.data.len();
         let bitmap = canvas.data;
 
-        return Ok(Psf2Glyph{ 
-            bitmap, 
-            grapheme: grapheme.to_string(), 
-            height: height.into(), 
-            width: width.into(), 
+        let glyph = Psf2Glyph {
+            bitmap,
+            grapheme: grapheme.to_string(),
+            height: height.into(),
+            width: width.into(),
             length: length.try_into()?
-        });
+        };
+
+        return Ok(glyph);
     }
 }
 

@@ -6,7 +6,7 @@ use ab_glyph::v2::GlyphImage;
 use itertools::Itertools;
 use bitvec::prelude::*;
 use std::iter::once;
-use log::{error, warn, info, debug, trace};
+use log::{Level, log, warn, debug, trace};
 
 /// A struct similar to `ab_glyph::v2::GlyphImage`, but the `data` field is owned instead of sliced
 /// from a font file, and the struct is not labeled non-exhaustive. This means that
@@ -41,6 +41,7 @@ impl GlyphImageOwned {
     {
         let glyph_id = font.glyph_id(character);
         let glyph = font.font.glyph_raster_image2(glyph_id, font.height().ceil() as u16)?;
+        trace!("Embedded bitmap found for character {:?}", character);
         let glyph: GlyphImageOwned = glyph.into();
         return Some(glyph);
     }
@@ -155,6 +156,23 @@ impl GlyphImageOwned {
             }
             _ => return Err("Unsupported embedded bitmap format.".into()),
         }
+    }
+
+    pub fn draw_to_ascii_art(self, log_level: Level) -> Result<(), Box<dyn error::Error>> {
+        let h = self.height;
+        let w = self.width;
+        let image = self.convert_format(&BitmapMono)?;
+        log!(log_level, "ASCII art of glyph image (height {h}, width {w}):");
+        let image_data_bits = image.data.view_bits::<Msb0>();
+        for row in image_data_bits.chunks(image.width.into()) {
+            let ascii_row: String = row
+                .iter()
+                .map( |b| {if *b {['#', '#']} else {['.', '.']} } )
+                .flatten()
+                .collect();
+            log!(log_level, "{}", ascii_row);
+        }
+        Ok(())
     }
 }
 

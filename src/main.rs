@@ -3,8 +3,8 @@ use std::fs;
 use std::path::Path;
 use crate::psf2_font::Psf2Font;
 use ab_glyph::FontRef;
-use rusttype::Font;
-use log::{error, warn, info, debug, trace};
+
+use log::{info};
 use colog;
 mod psf2_font;
 mod glyph_image_owned;
