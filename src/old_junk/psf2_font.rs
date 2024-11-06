@@ -7,6 +7,7 @@ use unicode_segmentation::UnicodeSegmentation;
 use regex::Regex;
 use ab_glyph::{FontRef, PxScaleFont};
 use crate::glyph_image_owned;
+use crate::grapheme_info;
 
 const PSF2_MAGIC_BYTES: [u8; 4] = [0x72, 0xb5, 0x4a, 0x86];
 const PSF2_VERSION: [u8; 4] = [0x0, 0x0, 0x0, 0x0];
@@ -103,7 +104,7 @@ impl Psf2GlyphSet {
             .map( |g| (g.height, g.width, g.length) )
             .unique().collect();
         let [(height, width, length)] = heights_widths_lengths.as_slice() else {
-            println!("{heights_widths_lengths:?}");
+            error!("Character heights/widths/lengths differ, falling into these buckets: {heights_widths_lengths:?}");
             // println!("{glyph_set:?}");
             return Err("Different glyphs in the generated glyph set have different dimensions. Make sure this is a monospace font.".into());
         }; // TODO make this an error for real
@@ -129,22 +130,28 @@ struct Psf2Glyph {
 impl Psf2Glyph {
     /// Writes a glyph to a vector of bytes.
     pub fn write(self) -> Vec<u8> {
-        trace!("Writing the bitmap for '{}' to bytes.", self.grapheme);
+        trace!("Writing the bitmap for '{}' () to bytes.", self.grapheme);
         return self.bitmap;
     }
     
     /// Creates a new glyph bitmap, given a single Unicode grapheme, an ab_glyph font, 
     /// and a target font height in pixels.
     pub fn new(grapheme: &str, font: &PxScaleFont<FontRef>) -> Result<Psf2Glyph, Box<dyn error::Error>> {
-        let gr_unicode = grapheme.escape_unicode();
-        trace!("Creating bitmap for '{grapheme}' ({gr_unicode}).");
+        assert!(grapheme.len() > 0);
+
+        let gr_info = grapheme_info::seq_info(grapheme);
+        trace!("Creating bitmap for '{grapheme}' ({gr_info}).");
+
         let graphemes_count = UnicodeSegmentation::graphemes(grapheme, true).count();
         if graphemes_count != 1 {
             warn!("The Unicode sequence {grapheme} in the Unicode table encodes zero or multiple graphemes.");
         }
+
         let mut glyph_images = grapheme
             .chars()
-            .map( |c| glyph_image_owned::GlyphImageOwned::new(c, &font) );
+            .map( |c| glyph_image_owned::GlyphImageOwned::new(c, &font)
+                .convert_format(&ab_glyph::GlyphImageFormat::BitmapMono)?
+                );
 
         let mut canvas = glyph_images.nth(0).unwrap();
 
@@ -152,8 +159,6 @@ impl Psf2Glyph {
             canvas = canvas.overlay(img)?;
         }
 
-        canvas = canvas.convert_format(&ab_glyph::GlyphImageFormat::BitmapMono)?;
-        
         canvas.clone().draw_to_ascii_art(Level::Trace)?; //TODO: this sucks make it suck less
 
         let width = canvas.width;

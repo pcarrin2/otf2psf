@@ -1,0 +1,15 @@
+WHITESPACE = _{ " " | "\t" }
+COMMENT = _{ '#' ~ (!'\n' ~ ANY)* ~ '\n' }
+
+prefix = { ^"u+" }
+hex_digits = { ('0' .. '9' | 'a' .. 'f' | 'A' .. 'F'){1,6} }
+codepoint = ${ prefix ~ hex_digits }
+
+grapheme = { codepoint+ }
+
+newline = {"\r\n" | "\n"}
+grapheme_separator = { ',' }
+equiv_graphemes_set = { grapheme ~ (grapheme_separator ~ grapheme)* ~ newline+ }
+
+file = {SOI ~ newline* ~ equiv_graphemes_set+ ~ newline* ~ EOI}
+
