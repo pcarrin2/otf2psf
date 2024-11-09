@@ -16,10 +16,8 @@ pub struct UnicodeTable {
 
 impl UnicodeTable {
     pub fn from_file(path: &Path, glyph_count: Option<u32>) -> Result<Self, UnicodeTableError> {
-        let unparsed_file = fs::read_to_string(filename)
-            .unwrap_or_else(|e| return Err(UnicodeTableError::IoError{e}) );
-        let file = UnicodeTableParser::parse(Rule::file, &unparsed_file)
-            .unwrap_or_else(|e| return Err(UnicodeTableError::ParserError{e}) )
+        let unparsed_file = fs::read_to_string(path)?;
+        let file = UnicodeTableParser::parse(Rule::file, &unparsed_file)?
             .next().unwrap(); // get and unwrap the 'file' rule; never fails
         
         let mut data: Vec<Vec<String>> = vec![];
@@ -28,13 +26,17 @@ impl UnicodeTable {
                 let mut data_equiv_graphemes_set: Vec<String> = vec![];
                 for entry in row.into_inner() {
                     if entry.as_rule() == Rule::grapheme {
-                        let mut data_grapheme: String = "";
+                        let mut data_grapheme: String = String::new();
                         for codepoint in entry.into_inner() {
                             let value = u32::from_str_radix(
-                                codepoint.into_inner().nth(1).as_str(),
+                                codepoint.into_inner().nth(1)
+                                .expect("Unicode 'U+' prefix without codepoint found in Unicode table").as_str(),
                                 16)?;
                             let character = char::from_u32(value);
-                            data_grapheme.push(character);
+                            match character {
+                                None => return Err(UnicodeTableError::InvalidCodepoint{codepoint: value}),
+                                Some(c) => data_grapheme.push(c),
+                            }
                        }
                         data_equiv_graphemes_set.push(data_grapheme);
                     }
@@ -43,8 +45,8 @@ impl UnicodeTable {
             }
         }
 
-        if glyph_count.is_some() {
-            data = data.truncate(glyph_count);
+        if let Some(gc) = glyph_count {
+            data.truncate(gc as usize);
         }
 
         return Ok(UnicodeTable{data});
@@ -64,8 +66,8 @@ impl UnicodeTable {
              * followed by term to terminate the list. */
 
             for grapheme in equivalent_graphemes_list.into_iter() {
-                if grapheme.length() == 1 {
-                    unicode_table.push(grapheme.as_bytes().to_vec());
+                if grapheme.len() == 1 {
+                    unicode_table.extend(grapheme.as_bytes().to_vec());
                 } else {
                     multi_char_graphemes.push(grapheme);
                 }
@@ -73,10 +75,11 @@ impl UnicodeTable {
 
             for grapheme in multi_char_graphemes.into_iter() {
                 unicode_table.push(ss);
-                unicode_table.push(grapheme.as_bytes().to_vec());
+                unicode_table.extend(grapheme.as_bytes().to_vec());
             }
 
             unicode_table.push(term);
        }
+       return unicode_table;
     }
 }

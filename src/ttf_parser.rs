@@ -1,4 +1,4 @@
-use ab_glyph::{Point, PxScale, FontRef, Font, ScaleFont, Glyph, GlyphImageFormat, GlyphImageFormat::*};
+use ab_glyph::{point, Point, PxScale, FontVec, Font, ScaleFont, Glyph, GlyphImageFormat, GlyphImageFormat::*};
 use ab_glyph::PxScaleFont;
 use ab_glyph::v2::GlyphImage;
 use bitvec::prelude::*;
@@ -7,44 +7,39 @@ use std::path::Path;
 
 use crate::glyph;
 use crate::errors::TtfParserError;
+use crate::errors::GlyphError;
 
 /// A parser that creates `Glyph`s from a TTF/OTF font and a character set.
 #[derive(Debug)]
 pub struct TtfParser {
     /// TTF input font.
-    font: PxScaleFont<FontRef>,
-    /// A character set: each element is a list of Unicode graphemes that should map to the same
-    /// glyph in the final PSF2 font. The first grapheme from each list is taken as a "reference",
-    /// meaning that it is rendered to produce the PSF2 glyph for the whole list.
-    charset: Vec<Vec<String>>,
+    font: PxScaleFont<FontVec>,
 }
 
 impl TtfParser {
-    pub fn from_font_and_charset_paths(font_path: &Path, charset_path: &Path, height: u32) 
-        -> Result<Self, TtfParserError> {
+    pub fn from_font_path(font_path: &Path, height: u32) -> Result<TtfParser, TtfParserError> {
         let font_px_scale = PxScale::from(height as f32);
-        let font_data = std::fs::read(font_path)
-            .unwrap_or_else(|e| return Err(TtfParserError::IoError{e}));
-        let font = FontRef::try_from_slice(&font_data)
-            .unwrap_or_else(|e| return Err(TtfParserError::FontCreationError{e}));
-
-        let charset = UnicodeTable::from_file(uc_table_path);
-
-        return Ok(Self{font, charset})
+        let font_data = std::fs::read(font_path)?;
+        let font = FontVec::try_from_vec_and_index(font_data, 0)?;
+        let scaled_font = font.into_scaled(font_px_scale);
+        
+        return Ok(Self{font: scaled_font})
     }
 
-    pub fn render_string(&self, grapheme: &str) -> glyph::Glyph {
-        let char_glyphs = grapheme.iter().map(render_char);
+    pub fn render_string(&self, grapheme: &str) -> Result<glyph::Glyph, GlyphError> {
+        let mut char_glyphs = grapheme.chars().map(|c| self.render_char(c));
         let first_glyph = char_glyphs.nth(0);
-        let combined_glyph = char_glyphs.fold(first_glyph, |acc, g| acc.add(g));
-        return combined_glyph;
+        return match first_glyph {
+            Some(fg) => { let combined_glyph = char_glyphs.fold(fg, |acc, g| acc.add(g).unwrap()); Ok(combined_glyph)}
+            None => Err(GlyphError::EmptyString),
+        }
     }
 
     pub fn render_char(&self, character: char) -> glyph::Glyph {
         let embedded_bitmap = self.find_embedded_bitmap(character);
         return match embedded_bitmap {
-            Some(b) => b
-            None => self.rasterize(character)
+            Some(b) => b,
+            None => self.rasterize(character),
         }
     }
     
@@ -54,7 +49,7 @@ impl TtfParser {
         let glyph = glyph::Glyph::from_glyph_image(glyph_image, character);
         return match glyph {
             Ok(g) => Some(g),
-            GlyphError(e) => {
+            Err(e) => {
                 eprintln!("{e:?} -- rasterizing instead"); // TODO make this pretty, probably via
                                                            // logging.
                 None
@@ -67,17 +62,17 @@ impl TtfParser {
             .glyph_id(character)
             .with_scale_and_position(self.font.height(), point(0.0, 0.0));
 
-        let width = self.font.h_advance(glyph.id).ceil() as u8;
-        let height = self.font.height() as u8;
-        let byte_aligned_width = (8 * (width / 8.0).ceil()) as u8;
+        let width = self.font.h_advance(glyph.id).ceil() as u32;
+        let height = self.font.height() as u32;
+        let byte_aligned_width = (8.0 * (width as f64 / 8.0).ceil()) as u32;
 
-        let mut data = bitvec![u8, Msb0; 0; (byte_aligned_width * height).into()];
+        let mut data = bitvec![u8, Msb0; 0; (byte_aligned_width * height).try_into().unwrap()];
         
-        if let Some(og) = font.outline_glyph(glyph) {
+        if let Some(og) = self.font.outline_glyph(glyph) {
             let bounds = og.px_bounds();
             og.draw( |x, y, v| {
-                let x = (x as f32 + bounds.min.x) as u16;
-                let y = (y as f32 + bounds.min.y) as u16;
+                let x = (x as f32 + bounds.min.x) as u32;
+                let y = (y as f32 + bounds.min.y) as u32;
 
                 if x < width && y < height && v >= 0.5 {
                     data.set((x as usize) + (y as usize) * (byte_aligned_width as usize), true);
@@ -86,6 +81,7 @@ impl TtfParser {
         }
 
         let data = data.into_vec();
+        let grapheme = character.to_string();
 
         return glyph::Glyph{ height, width, data, grapheme };
         

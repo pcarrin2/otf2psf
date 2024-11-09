@@ -1,5 +1,7 @@
 use crate::glyph::Glyph;
+use crate::ttf_parser::TtfParser;
 use crate::errors::GlyphSetError;
+use crate::unicode_table::UnicodeTable;
 
 
 const PSF2_MAGIC_BYTES: [u8; 4] = [0x72, 0xb5, 0x4a, 0x86];
@@ -10,16 +12,16 @@ const PSF2_HEADER_SIZE: [u8; 4] = 32_u32.to_le_bytes();
 pub struct Psf2Header {
     /// Specifies whether a Unicode mapping table is included for this font. If false, glyphs will
     /// represent `glyph_count` Unicode codepoints, starting from U+0, in order.
-    unicode_table_exists: bool,
+    pub unicode_table_exists: bool,
     /// The number of glyphs included in the font. Can be arbitrarily large, but the Linux kernel
     /// will only accept fonts up to 512 characters, I think.
-    glyph_count: u32,
+    pub glyph_count: u32,
     /// The number of bytes used to store each glyph.
-    glyph_size: u32,
+    pub glyph_size: u32,
     /// The height in pixels of each glyph.
-    glyph_height: u32,
+    pub glyph_height: u32,
     /// The width in pixels of each glyph.
-    glyph_width: u32,
+    pub glyph_width: u32,
 }
 
 impl Psf2Header {
@@ -47,38 +49,33 @@ pub struct Psf2GlyphSet {
     /// bitmaps correspond with Unicode characters `U+0000` through `U+(glyph_count - 1)`.
     glyphs: Vec<Glyph>,
     /// The height of each glyph.
-    height: u32,
+    pub height: u32,
     /// The width of each glyph.
-    width: u32,
+    pub width: u32,
     /// The length of each glyph, in bytes.
-    length: u32,
+    pub length: u32,
 }
 
 impl Psf2GlyphSet {
-    pub fn new_with_unicode_table(ttf_parser: TtfParser, unicode_table: &unicode_table::UnicodeTable) 
-        -> Result<Self, GlyphError> {
-        let mut glyph_set: Vec<Psf2Glyph> = vec![];
+    pub fn new_with_unicode_table(ttf_parser: TtfParser, unicode_table: &UnicodeTable) 
+        -> Result<Self, GlyphSetError> {
+        let mut glyph_set: Vec<Glyph> = vec![];
         for equivalent_graphemes_list in unicode_table.data.iter() {
             // select a "reference grapheme" to rasterize and use as a symbol for a set of
             // equivalent graphemes.
             let reference_grapheme = &equivalent_graphemes_list[0];
-            glyph_set.push(ttf_parser.render_string(reference_grapheme));
+            glyph_set.push(ttf_parser.render_string(reference_grapheme)?);
         }
 
         return Self::from_vec_of_glyphs(glyph_set);
         
     }
 
-    pub fn new(ttf_parser: TtfParser, glyph_count: u32) -> Self {
-        let mut glyph_set: Vec<Psf2Glyph> = vec![];
-        let mut i = 0;
-        let mut c = char::from(0);
-        while i < glyph_count {
-            glyph_set.push(ttf_parser.render_string(c));
-            c = c.forward(1);
-            i++;
-        }
-
+    pub fn new(ttf_parser: TtfParser, glyph_count: u32) -> Result<Self, GlyphSetError> {
+        let glyph_set: Vec<Glyph> = (0..(glyph_count-1)).map(
+            |i|
+            ttf_parser.render_char(char::from_u32(i).expect("Invalid Unicode codepoint while generating glyph set"))
+        ).collect();
         return Self::from_vec_of_glyphs(glyph_set);
     }
 
@@ -88,20 +85,37 @@ impl Psf2GlyphSet {
         let width: u32;
         let length: u32;
 
-        let glyph_set_iter = glyphs.iter();
+        let mut glyph_set_iter = glyphs.iter();
         let glyph_set_first = glyph_set_iter.nth(0);
-        (height, width, length) = (glyph_set_first.height, glyph_set_first.width, glyph_set_first.length);
+        match glyph_set_first {
+            None => return Ok(Self{
+                glyphs, 
+                height: 0, 
+                width: 0, 
+                length: 0,
+            }),
+            Some(f) => {
+                (height, width, length) = (f.height, f.width, f.data.len() as u32);
 
-        for g in glyph_set_iter {
-            if (g.height != height || g.width != width) {
-                return GlyphSetError::InconsistentDimensions{g.height, g.width, height, width}
-            }
-            else if (g.length != length) {
-                return GlyphSetError::InconsistentLengths{g.length, length}
+                for g in glyph_set_iter {
+                    if (u32::from(g.height) != height 
+                        || u32::from(g.width) != width) {
+                        return Err(GlyphSetError::InconsistentDimensions{
+                            height: g.height, 
+                            width: g.width, 
+                            expected_height: height, 
+                            expected_width: width,
+                        })
+                    }
+                    else if (g.data.len() != length as usize) {
+                        return Err(GlyphSetError::InconsistentLengths{length: g.data.len(), expected_length: length as usize});
+                    }
+                }
+
+                return Ok(Self{glyphs, height, width, length});
+
             }
         }
-
-        return Ok(Self{glyphs, height, width, length});
 
     }
 
@@ -112,16 +126,18 @@ impl Psf2GlyphSet {
 
 /// A PSF2 font.
 pub struct Psf2Font {
-    header: Psf2Header,
-    glyphs: Psf2GlyphSet,
-    unicode_table: Option<Psf2UnicodeTable>,
+    pub header: Psf2Header,
+    pub glyphs: Psf2GlyphSet,
+    pub unicode_table: Option<UnicodeTable>,
 }
 
 impl Psf2Font {
     pub fn write(self) -> Vec<u8> {
         let mut font: Vec<u8> = self.header.write().to_vec();
         font.extend(self.glyphs.write());
-        font.extend(self.unicode_table.write());
+        if let Some(uc) = self.unicode_table {
+            font.extend(uc.write())
+        };
         return font;
     }
 }
