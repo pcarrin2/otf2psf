@@ -1,6 +1,6 @@
 use std::fs;
 use std::path::Path;
-use std::error::Error;
+
 use crate::errors::UnicodeTableError;
 
 use pest::Parser;

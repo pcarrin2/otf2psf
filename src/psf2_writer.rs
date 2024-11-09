@@ -98,8 +98,8 @@ impl Psf2GlyphSet {
                 (height, width, length) = (f.height, f.width, f.data.len() as u32);
 
                 for g in glyph_set_iter {
-                    if (u32::from(g.height) != height 
-                        || u32::from(g.width) != width) {
+                    if u32::from(g.height) != height 
+                        || u32::from(g.width) != width {
                         return Err(GlyphSetError::InconsistentDimensions{
                             height: g.height, 
                             width: g.width, 
@@ -107,7 +107,7 @@ impl Psf2GlyphSet {
                             expected_width: width,
                         })
                     }
-                    else if (g.data.len() != length as usize) {
+                    else if g.data.len() != length as usize {
                         return Err(GlyphSetError::InconsistentLengths{length: g.data.len(), expected_length: length as usize});
                     }
                 }

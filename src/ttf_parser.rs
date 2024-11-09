@@ -1,8 +1,8 @@
-use ab_glyph::{point, Point, PxScale, FontVec, Font, ScaleFont, Glyph, GlyphImageFormat, GlyphImageFormat::*};
+use ab_glyph::{point, PxScale, FontVec, Font, ScaleFont};
 use ab_glyph::PxScaleFont;
-use ab_glyph::v2::GlyphImage;
+
 use bitvec::prelude::*;
-use bitvec::vec::BitVec;
+
 use std::path::Path;
 
 use crate::glyph;

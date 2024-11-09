@@ -2,7 +2,7 @@ use ab_glyph::GlyphImageFormat;
 use ab_glyph::InvalidFont;
 use std::fmt::Formatter;
 use std::fmt::Display;
-use image::ImageError::IoError;
+
 use crate::unicode_table::Rule;
 use std::num::ParseIntError;
 
