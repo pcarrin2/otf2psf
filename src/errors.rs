@@ -109,16 +109,12 @@ impl std::error::Error for TtfParserError {}
 pub enum GlyphSetError {
     InconsistentDimensions { height: u32, width: u32, expected_height: u32, expected_width: u32 },
     InconsistentLengths { length: usize, expected_length: usize },
-    EmptyString
+    FromGlyphError{ inner: GlyphError }
 }
 
 impl From<GlyphError> for GlyphSetError {
-    fn from(e: GlyphError) -> GlyphSetError {
-        match e {
-            GlyphError::EmptyString => return GlyphSetError::EmptyString,
-            // TODO make not panic
-            _ => panic!("Casting wrong variant of GlyphError to GlyphSetError"),
-        }
+    fn from(inner: GlyphError) -> GlyphSetError {
+        return GlyphSetError::FromGlyphError{inner}
     }
 }
 
@@ -131,8 +127,8 @@ impl Display for GlyphSetError {
             GlyphSetError::InconsistentLengths{length, expected_length} => 
                 write!(f, "Glyphs in glyph set do not all have the same length: \
                 glyphs so far were {} bytes, but current glyph is {} bytes.", expected_length, length),
-            GlyphSetError::EmptyString => 
-                write!(f, "Attempted to render empty string as a glyph."),
+            GlyphSetError::FromGlyphError{inner} => 
+                write!(f, "While constructing glyph set, encountered glyph error: {:?}", inner),
         }
     }
 }

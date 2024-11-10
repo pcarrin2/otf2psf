@@ -1,6 +1,8 @@
 use crate::errors::GlyphError;
 use ab_glyph::v2::GlyphImage;
 use ab_glyph::GlyphImageFormat;
+use bitvec::prelude::*;
+use itertools::intersperse;
 
 /// A glyph bitmap, in psf2 style: mono-color, one bit per pixel, byte-padded rows.
 pub struct Glyph {
@@ -47,6 +49,7 @@ impl Glyph {
     /// right of `self` and below it. Returns an error if the padded dimensions are too small to
     /// fit `self`.
     pub fn pad(self, new_height: u32, new_width: u32) -> Result<Self, GlyphError> {
+        eprintln!("length before padding: {}", self.data.len());
         if self.height > new_height || self.width > new_width {
             return Err(GlyphError::PadTooSmall{height: self.height, width: self.width, pad_height: new_height, pad_width: new_width});
         }
@@ -62,19 +65,42 @@ impl Glyph {
             data = self.data;
         }
         data.append(&mut vec![0u8; (new_height - self.height) as usize * padded_row_length]);
+        eprintln!("length after padding: {}", data.len());
         return Ok(Self{height: new_height, width: new_width, data, grapheme: self.grapheme});
     }
 
     /// Creates a new `Glyph` from an embedded bitmap in a TTF/OTF file.
-    // TODO add BitmapMonoPacked support!
     pub fn from_glyph_image(glyph_image: GlyphImage, grapheme: char) -> Result<Self, GlyphError> {
         return match glyph_image.format {
             GlyphImageFormat::BitmapMono => {
                 Ok(Glyph {
-                    height : glyph_image.height as u32,
-                    width : glyph_image.width as u32,
-                    data : glyph_image.data.to_vec(),
-                    grapheme : grapheme.to_string()
+                    height: glyph_image.height as u32,
+                    width: glyph_image.width as u32,
+                    data: glyph_image.data.to_vec(),
+                    grapheme: grapheme.to_string(),
+                })
+            }
+
+            GlyphImageFormat::BitmapMonoPacked => {
+                let mut data = bitvec![u8, Msb0; 0; 0];
+                let whitespace_width = ((glyph_image.width as f64 / 8.0).ceil() as usize) * 8 - glyph_image.width as usize;
+                let mut whitespace = bitvec![u8, Msb0; 0; whitespace_width as usize];
+                let mut glyph_image_clone = glyph_image.data.to_vec();
+
+                let glyph_image_rows = glyph_image_clone.view_bits_mut::<Msb0>().chunks_exact_mut(glyph_image.width.into());
+                for row in glyph_image_rows {
+                    let mut padded_row = row.to_bitvec();
+                    padded_row.append(&mut whitespace.clone());
+                    data.extend(padded_row);
+                }
+
+                let data_vec = data.into_vec();
+                
+                Ok(Glyph {
+                    height: glyph_image.height as u32,
+                    width: glyph_image.width as u32,
+                    data: data_vec,
+                    grapheme: grapheme.to_string(),
                 })
             }
             _fmt => Err(GlyphError::GlyphImgFmtUnsupported{format: _fmt}),

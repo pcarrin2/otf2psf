@@ -26,9 +26,15 @@ struct OtfToPsf2Options {
     /// The number of glyphs to include in the finished font. If a Unicode table is also specified,
     /// at most `glyph_count` glyphs will be included from the table. If a Unicode table is
     /// not specified, `glyph_count` glyphs will be generated, corresponding to Unicode codepoints
-    /// `0` through `(glyph_count - 1)`.
+    /// `0` through `(glyph_count - 1)`. The default is the length of the Unicode table, if
+    /// included, or 256 if no Unicode table is included.
     #[arg(short, long)]
     glyph_count: Option<u32>,
+    /// Pad all glyphs to the canvas size of the largest glyph. Helpful for dealing with fonts
+    /// where some special characters have unusually small canvases. If this flag is not set, this
+    /// tool will require all glyphs to be the same size, and will exit with an error otherwise.
+    #[arg(long, action)]
+    pad: bool,
 }
 
 fn main() -> Result <(), Box<dyn std::error::Error>> { 
@@ -43,12 +49,12 @@ fn main() -> Result <(), Box<dyn std::error::Error>> {
         Some(p) => {
             let unicode_table = unicode_table::UnicodeTable::from_file(p, cli_options.glyph_count)?;
             let glyph_count = unicode_table.data.len() as u32;
-            let glyphs = psf2_writer::Psf2GlyphSet::new_with_unicode_table(ttf_parser, &unicode_table)?;
+            let glyphs = psf2_writer::Psf2GlyphSet::new_with_unicode_table(ttf_parser, &unicode_table, cli_options.pad)?;
             (Some(unicode_table), glyph_count, glyphs)
         }
         None => {
             let glyph_count = {if let Some(n) = cli_options.glyph_count {n} else {256}};
-            (None, glyph_count, psf2_writer::Psf2GlyphSet::new(ttf_parser, glyph_count)?)
+            (None, glyph_count, psf2_writer::Psf2GlyphSet::new(ttf_parser, glyph_count, cli_options.pad)?)
         }
     };
 

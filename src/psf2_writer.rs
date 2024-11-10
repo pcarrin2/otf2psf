@@ -57,7 +57,7 @@ pub struct Psf2GlyphSet {
 }
 
 impl Psf2GlyphSet {
-    pub fn new_with_unicode_table(ttf_parser: TtfParser, unicode_table: &UnicodeTable) 
+    pub fn new_with_unicode_table(ttf_parser: TtfParser, unicode_table: &UnicodeTable, pad: bool) 
         -> Result<Self, GlyphSetError> {
         let mut glyph_set: Vec<Glyph> = vec![];
         for equivalent_graphemes_list in unicode_table.data.iter() {
@@ -67,19 +67,48 @@ impl Psf2GlyphSet {
             glyph_set.push(ttf_parser.render_string(reference_grapheme)?);
         }
 
-        return Self::from_vec_of_glyphs(glyph_set);
+        return match pad {
+            true => Self::from_vec_of_glyphs_pad(glyph_set),
+            false => Self::from_vec_of_glyphs_strict(glyph_set),
+        }
         
     }
 
-    pub fn new(ttf_parser: TtfParser, glyph_count: u32) -> Result<Self, GlyphSetError> {
-        let glyph_set: Vec<Glyph> = (0..(glyph_count-1)).map(
+    pub fn new(ttf_parser: TtfParser, glyph_count: u32, pad: bool) -> Result<Self, GlyphSetError> {
+        let glyph_set: Vec<Glyph> = (0..(glyph_count)).map(
             |i|
             ttf_parser.render_char(char::from_u32(i).expect("Invalid Unicode codepoint while generating glyph set"))
         ).collect();
-        return Self::from_vec_of_glyphs(glyph_set);
+
+        return match pad {
+            true => Self::from_vec_of_glyphs_pad(glyph_set),
+            false => Self::from_vec_of_glyphs_strict(glyph_set),
+        }
     }
 
-    fn from_vec_of_glyphs(glyphs: Vec<Glyph>) -> Result<Self, GlyphSetError> {
+    fn from_vec_of_glyphs_pad(glyphs: Vec<Glyph>) -> Result<Self, GlyphSetError> {
+        let mut max_height: u32 = 0;
+        let mut max_width: u32 = 0;
+        let mut max_length: u32 = 0;
+
+        for g in glyphs.iter() {
+            max_height = std::cmp::max(u32::from(g.height), max_height);
+            max_width = std::cmp::max(u32::from(g.width), max_width);
+            max_length = std::cmp::max(u32::try_from(g.data.len()).unwrap(), max_length);
+        }
+
+        let mut padded_glyphs: Vec<Glyph> = vec![];
+
+        for g in glyphs.into_iter() {
+            let padded = g.pad(max_height, max_width)?;
+            padded_glyphs.push(padded);
+        }
+
+
+        return Self::from_vec_of_glyphs_strict(padded_glyphs);
+    }
+
+    fn from_vec_of_glyphs_strict(glyphs: Vec<Glyph>) -> Result<Self, GlyphSetError> {
         // check that all heights/widths/lengths are equal.
         let height: u32;
         let width: u32;
@@ -134,7 +163,12 @@ pub struct Psf2Font {
 impl Psf2Font {
     pub fn write(self) -> Vec<u8> {
         let mut font: Vec<u8> = self.header.write().to_vec();
-        font.extend(self.glyphs.write());
+        eprintln!("Font header length: {}", font.len());
+        let glyphs_data = self.glyphs.write();
+        eprintln!("Glyph set length: {}", glyphs_data.len());
+        //font.extend(self.glyphs.write());
+        font.extend(glyphs_data);
+        eprintln!("Total font length: {}", font.len());
         if let Some(uc) = self.unicode_table {
             font.extend(uc.write())
         };
