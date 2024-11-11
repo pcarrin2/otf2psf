@@ -58,6 +58,8 @@ fn main() -> Result <(), Box<dyn std::error::Error>> {
         }
     };
 
+    eprintln!("Glyph count: {}", glyph_count);
+
     let header = psf2_writer::Psf2Header{
         unicode_table_exists: cli_options.unicode_table_file.is_some(),
         glyph_count: glyph_count,

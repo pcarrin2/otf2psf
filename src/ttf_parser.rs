@@ -30,7 +30,10 @@ impl TtfParser {
         let mut char_glyphs = grapheme.chars().map(|c| self.render_char(c));
         let first_glyph = char_glyphs.nth(0);
         return match first_glyph {
-            Some(fg) => { let combined_glyph = char_glyphs.fold(fg, |acc, g| acc.add(g).unwrap()); Ok(combined_glyph)}
+            Some(fg) => { 
+                let combined_glyph = char_glyphs.fold(fg, |acc, g| acc.add(g).unwrap());
+                Ok(combined_glyph)
+            }
             None => Err(GlyphError::EmptyString),
         }
     }
@@ -50,8 +53,8 @@ impl TtfParser {
         return match glyph {
             Ok(g) => Some(g),
             Err(e) => {
-                eprintln!("{e:?} -- rasterizing instead"); // TODO make this pretty, probably via
-                                                           // logging.
+                eprintln!("{e} -- rasterizing instead"); // TODO make this pretty, probably via
+                                                         // logging.
                 None
             }
         }
@@ -67,17 +70,38 @@ impl TtfParser {
         let byte_aligned_width = (8.0 * (width as f64 / 8.0).ceil()) as u32;
 
         let mut data = bitvec![u8, Msb0; 0; (byte_aligned_width * height).try_into().unwrap()];
+        let mut pixel_perfect = true;
         
         if let Some(og) = self.font.outline_glyph(glyph) {
             let bounds = og.px_bounds();
             og.draw( |x, y, v| {
-                let x = (x as f32 + bounds.min.x) as u32;
-                let y = (y as f32 + bounds.min.y) as u32;
+                if v != 1.0 && v != 0.0 {
+                    pixel_perfect = false;
+                }
+                // Align this glyph's canvas with the font's baseline. 
+                // Warning: glyphs may extend above the font's ascent or below the font's descent
+                // -- they will be chopped off in this case. This is, in my opinion, an inherent
+                // hazard of smushing an OTF font into a strict monospace bitmap format.
+                let y_signed = (y as f32 + bounds.min.y + self.font.ascent()) as i32;
+                let x_signed = (x as f32 + bounds.min.x) as i32;
+
+                if y_signed < 0 || x_signed < 0 
+                    || y_signed >= height.try_into().unwrap() || x_signed >= width.try_into().unwrap() {
+                    eprintln!("While rasterizing {}: pixel ({}, {}) is out of bounds and will not be rendered",
+                        character, x_signed, y_signed);
+                }
+
+                let y = y_signed as u32;
+                let x = x_signed as u32;
 
                 if x < width && y < height && v >= 0.5 {
                     data.set((x as usize) + (y as usize) * (byte_aligned_width as usize), true);
                 }
             })
+        }
+
+        if !pixel_perfect {
+            eprintln!("While rasterizing {}: the glyph outline was not pixel-perfect.", character);
         }
 
         let data = data.into_vec();

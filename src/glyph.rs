@@ -49,7 +49,6 @@ impl Glyph {
     /// right of `self` and below it. Returns an error if the padded dimensions are too small to
     /// fit `self`.
     pub fn pad(self, new_height: u32, new_width: u32) -> Result<Self, GlyphError> {
-        eprintln!("length before padding: {}", self.data.len());
         if self.height > new_height || self.width > new_width {
             return Err(GlyphError::PadTooSmall{height: self.height, width: self.width, pad_height: new_height, pad_width: new_width});
         }
@@ -65,7 +64,6 @@ impl Glyph {
             data = self.data;
         }
         data.append(&mut vec![0u8; (new_height - self.height) as usize * padded_row_length]);
-        eprintln!("length after padding: {}", data.len());
         return Ok(Self{height: new_height, width: new_width, data, grapheme: self.grapheme});
     }
 
