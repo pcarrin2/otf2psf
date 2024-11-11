@@ -8,6 +8,8 @@ use std::path::Path;
 use crate::glyph;
 use crate::errors::TtfParserError;
 use crate::errors::GlyphError;
+use crate::report::Report;
+use crate::report::GlyphType;
 
 /// A parser that creates `Glyph`s from a TTF/OTF font and a character set.
 #[derive(Debug)]
@@ -45,6 +47,24 @@ impl TtfParser {
             None => self.rasterize(character),
         }
     }
+
+    fn report_char(&self, character: char) -> Report {
+        let glyph_id = self.font.glyph_id(character);
+        let glyph_image = self.font.font.glyph_raster_image2(glyph_id, self.font.height().ceil() as u16);
+        let (glyph_type, height, width) = match glyph_image {
+            None => {
+                let glyph: ab_glyph::Glyph = self.font
+                    .glyph_id(character)
+                    .with_scale_and_position(self.font.height(), point(0.0, 0.0));
+                let width = self.font.h_advance(glyph.id).ceil() as u32;
+                let height = self.font.height() as u32;
+                (GlyphType::Vector, height, width)
+            }
+            Some(g) => (GlyphType::EmbeddedBitmap{format: g.format}, g.height.into(), g.width.into()),
+        };
+        return Report::new(character, glyph_type, height, width);
+    }
+
     
     fn find_embedded_bitmap(&self, character: char) -> Option<glyph::Glyph> {
         let glyph_id = self.font.glyph_id(character);
