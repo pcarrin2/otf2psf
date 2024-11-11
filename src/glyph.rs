@@ -2,7 +2,7 @@ use crate::errors::GlyphError;
 use ab_glyph::v2::GlyphImage;
 use ab_glyph::GlyphImageFormat;
 use bitvec::prelude::*;
-use itertools::intersperse;
+
 
 /// A glyph bitmap, in psf2 style: mono-color, one bit per pixel, byte-padded rows.
 pub struct Glyph {
@@ -84,7 +84,7 @@ impl Glyph {
             GlyphImageFormat::BitmapMonoPacked => {
                 let mut data = bitvec![u8, Msb0; 0; 0];
                 let whitespace_width = ((glyph_image.width as f64 / 8.0).ceil() as usize) * 8 - glyph_image.width as usize;
-                let mut whitespace = bitvec![u8, Msb0; 0; whitespace_width as usize];
+                let whitespace = bitvec![u8, Msb0; 0; whitespace_width as usize];
                 let mut glyph_image_clone = glyph_image.data.to_vec();
 
                 let glyph_image_rows = glyph_image_clone.view_bits_mut::<Msb0>().chunks_exact_mut(glyph_image.width.into());
