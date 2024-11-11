@@ -9,6 +9,7 @@ mod ttf_parser;
 mod psf2_writer;
 mod unicode_table;
 mod glyph;
+mod report;
 
 #[derive(Parser, Debug)]
 #[command(version, about)]
