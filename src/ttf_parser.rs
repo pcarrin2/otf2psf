@@ -50,7 +50,7 @@ impl TtfParser {
 
     pub fn report_char(&self, character: char) -> GlyphReport {
         let glyph_id = self.font.glyph_id(character);
-
+        // check whether this character maps to the same glyph as a known gap in Unicode.
         let glyph_is_undefined = character != '\u{03a2}' && glyph_id == self.font.glyph_id('\u{03a2}');
 
         let glyph_image = self.font.font.glyph_raster_image2(glyph_id, self.font.height().ceil() as u16);
