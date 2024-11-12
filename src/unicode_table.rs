@@ -41,6 +41,8 @@ impl UnicodeTable {
                         data_equiv_graphemes_set.push(data_grapheme);
                     }
                 }
+                /* list single-character graphemes first */
+                data_equiv_graphemes_set.sort_by_key(|str| str.len());
                 data.push(data_equiv_graphemes_set);
             }
         }
@@ -59,25 +61,19 @@ impl UnicodeTable {
        let mut unicode_table: Vec<u8> = vec![];
 
        for equivalent_graphemes_list in self.data.into_iter() {
-            let mut multi_char_graphemes: Vec<String> = vec![];
-            
-            /* in a list of equivalent graphemes, single-character graphemes are listed first, 
+            /* In a list of equivalent graphemes, single-character graphemes are listed first, 
              * followed by multi-character graphemes (with ss before each grapheme), 
-             * followed by term to terminate the list. */
-
+             * followed by term to terminate the list. Since we have already sorted equivalent
+             * graphemes by length when constructing the Unicode table, we don't have to re-sort
+             * them now. */
             for grapheme in equivalent_graphemes_list.into_iter() {
                 if grapheme.len() == 1 {
                     unicode_table.extend(grapheme.as_bytes().to_vec());
                 } else {
-                    multi_char_graphemes.push(grapheme);
+                    unicode_table.push(ss);
+                    unicode_table.extend(grapheme.as_bytes().to_vec());
                 }
             }
-
-            for grapheme in multi_char_graphemes.into_iter() {
-                unicode_table.push(ss);
-                unicode_table.extend(grapheme.as_bytes().to_vec());
-            }
-
             unicode_table.push(term);
        }
        return unicode_table;
