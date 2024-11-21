@@ -168,10 +168,12 @@ impl Psf2Font {
         eprintln!("Glyph set length: {}", glyphs_data.len());
         //font.extend(self.glyphs.write());
         font.extend(glyphs_data);
-        eprintln!("Total font length: {}", font.len());
         if let Some(uc) = self.unicode_table {
-            font.extend(uc.write())
+            let uc_table = uc.write();
+            eprintln!("Unicode table length: {}", uc_table.len());
+            font.extend(uc_table);
         };
+        eprintln!("Total font length: {}", font.len());
         return font;
     }
 }

@@ -35,14 +35,15 @@ impl UnicodeTable {
                             let character = char::from_u32(value);
                             match character {
                                 None => return Err(UnicodeTableError::InvalidCodepoint{codepoint: value}),
-                                Some(c) => data_grapheme.push(c),
+                                Some(c) => {eprintln!("pushing {} to grapheme", c); data_grapheme.push(c)}
                             }
                        }
                         data_equiv_graphemes_set.push(data_grapheme);
                     }
                 }
                 /* list single-character graphemes first */
-                data_equiv_graphemes_set.sort_by_key(|str| str.len());
+                data_equiv_graphemes_set.sort_by_key(|str| str.chars().count());
+                eprintln!("sorted: {:?}", data_equiv_graphemes_set);
                 data.push(data_equiv_graphemes_set);
             }
         }
@@ -50,7 +51,6 @@ impl UnicodeTable {
         if let Some(gc) = glyph_count {
             data.truncate(gc as usize);
         }
-
         return Ok(UnicodeTable{data});
     }
 
@@ -67,9 +67,11 @@ impl UnicodeTable {
              * graphemes by length when constructing the Unicode table, we don't have to re-sort
              * them now. */
             for grapheme in equivalent_graphemes_list.into_iter() {
-                if grapheme.len() == 1 {
+                if grapheme.chars().count() == 1 {
+                    eprintln!("single char grapheme {}", grapheme);
                     unicode_table.extend(grapheme.as_bytes().to_vec());
                 } else {
+                    eprintln!("multi char grapheme {}", grapheme);
                     unicode_table.push(ss);
                     unicode_table.extend(grapheme.as_bytes().to_vec());
                 }
