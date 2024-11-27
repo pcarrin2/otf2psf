@@ -8,6 +8,8 @@ It works on fonts that contain embedded bitmap strikes, as well as those with on
 
 Fancy symbols in the TTY. All the box-drawing characters your heart desires. Your favorite modern font, backported to an ancient and vestigial bitmap format. What more could you ask for in life?
 
+![TTY with custom Unifont psf font](./screenshot.png)
+
 ## Installation
 
 Clone this repo, `cargo build --release`, and copy the output binary to /bin if desired.
