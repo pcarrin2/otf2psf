@@ -74,7 +74,7 @@ To change the default console font, edit `/etc/default/console-setup`. Many dist
 
 ## Tested fonts
 
-I have tested this tool on 16px [GNU Unifont](https://unifoundry.com/unifont) ([download](https://unifoundry.com/pub/unifont/unifont-16.0.01/font-builds/unifont-16.0.01.otf)) and 16px [Terminus TTF](https://file.ax86.net/terminus-ttf/) ([download](https://files.ax86.net/terminus-ttf/files/latest.zip)).
+I have tested this tool on 16px [GNU Unifont](https://unifoundry.com/unifont) ([download](https://unifoundry.com/pub/unifont/unifont-16.0.01/font-builds/unifont-16.0.01.otf)) and 16px [Terminus TTF](https://files.ax86.net/terminus-ttf/) ([download](https://files.ax86.net/terminus-ttf/files/latest.zip)).
 
 If you find a font that this tool doesn't work on:
 
