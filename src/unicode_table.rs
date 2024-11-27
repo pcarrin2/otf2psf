@@ -35,6 +35,7 @@ impl UnicodeTable {
                             let character = char::from_u32(value);
                             match character {
                                 None => return Err(UnicodeTableError::InvalidCodepoint{codepoint: value}),
+                                Some(c) => data_grapheme.push(c),
                             }
                        }
                         data_equiv_graphemes_set.push(data_grapheme);
