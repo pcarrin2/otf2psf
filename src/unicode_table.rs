@@ -35,7 +35,6 @@ impl UnicodeTable {
                             let character = char::from_u32(value);
                             match character {
                                 None => return Err(UnicodeTableError::InvalidCodepoint{codepoint: value}),
-                                Some(c) => {eprintln!("pushing {} to grapheme", c); data_grapheme.push(c)}
                             }
                        }
                         data_equiv_graphemes_set.push(data_grapheme);
@@ -43,7 +42,6 @@ impl UnicodeTable {
                 }
                 /* list single-character graphemes first */
                 data_equiv_graphemes_set.sort_by_key(|str| str.chars().count());
-                eprintln!("sorted: {:?}", data_equiv_graphemes_set);
                 data.push(data_equiv_graphemes_set);
             }
         }
@@ -68,10 +66,8 @@ impl UnicodeTable {
              * them now. */
             for grapheme in equivalent_graphemes_list.into_iter() {
                 if grapheme.chars().count() == 1 {
-                    eprintln!("single char grapheme {}", grapheme);
                     unicode_table.extend(grapheme.as_bytes().to_vec());
                 } else {
-                    eprintln!("multi char grapheme {}", grapheme);
                     unicode_table.push(ss);
                     unicode_table.extend(grapheme.as_bytes().to_vec());
                 }
