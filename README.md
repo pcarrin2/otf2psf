@@ -22,17 +22,39 @@ Simplest case:
 otf2psf convert in.otf out.psf
 ```
 
-This command rasterizes in.otf at 16px height, writing to out.psf. To change the font size, add a positional argument: `otf2psf convert in.otf out.psf 12` will rasterize at 12px instead.
+This command rasterizes in.otf at 16px height, writing to out.psf. 
 
-By default, the first 256 Unicode characters will be included in the output font. To include a different number of characters, pass the `-g` flag. You can generate arbitrarily long fonts, but fonts longer than 512 characters will not work on a Linux TTY.
+Different font size (12px here):
 
-Alternatively, you can specify a Unicode character set:
+```
+otf2psf convert in.otf out.psf 12
+```
+
+512-character font:
+
+```
+otf2psf convert in.otf out.psf -g 512
+```
+
+Specify a Unicode character set:
 
 ```
 otf2psf convert in.otf out.psf --unicode-table-file my.set
 ```
 
-See the "Charset file format" section for more information on creating a Unicode character set.
+## Character set file format
+
+See `example.set` for a valid example charset. Comments beginning with `#` and blank lines are ignored. Each line contains a list of Unicode characters or sequences, which will all be represented by the same glyph in the PSF2 font. 
+
+For example, this line:
+```
+U+00E9, U+0065 U+0301
+```
+means that the same glyph should be used to represent the single character `U+00E9` (LATIN SMALL LETTER E WITH ACUTE) and the sequence `U+0065 U+0301` (ASCII lowercase e + combining acute accent).
+
+When generating bitmaps, `otf2psf` must pick a "representative grapheme" to render from the input OTF font. Currently, it selects the grapheme with the fewest codepoints. (So `U+00E9` with one codepoint beats `U+0065 U+0301` with two.) In case of a tie, the grapheme listed first is selected.
+
+## Troubleshooting
 
 If you get an error that not all characters in the font have the same size, you can use the `--pad` flag to pad out all glyphs to the size of the largest glyph.
 
@@ -46,25 +68,9 @@ After identifying the problem glyph that is too large, you can remove it from th
 
 If the glyphs just look weird, missing parts, lumpy, etc -- you're probably trying to rasterize the font at a size where it can't be rendered pixel-perfectly. Try adjusting the size, and if the situation doesn't improve, choose a different font.
 
-## Charset file format
-
-See `example.set` for a valid example charset. Comments beginning with `#` and blank lines are ignored. Each line contains a list of Unicode characters or sequences, which will all be represented by the same glyph in the PSF2 font. 
-
-For example, this line:
-```
-U+00E9, U+0065 U+0301
-```
-means that the same glyph should be used to represent the single character `U+00E9` (LATIN SMALL LETTER E WITH ACUTE) and the sequence `U+0065 U+0301` (ASCII lowercase e + combining acute accent).
-
-Generally, each listed Unicode sequence should be a single [grapheme cluster](https://www.unicode.org/reports/tr29/#Grapheme_Cluster_Boundaries). In particular, trying to use this system for ligatures is doomed to failure.
-
-When generating bitmaps, `otf2psf` must pick a "representative grapheme" to render from the input OTF font. For now, it selects the grapheme with the fewest codepoints. (So `U+00E9` with one codepoint beats `U+0065 U+0301` with two.) In case of a tie, the grapheme listed first is selected. I plan on making this behavior customizable in the future.
-
 ## Using the generated font
 
 These fonts are meant for TTY environments, not terminal emulators (most of which use TTF/OTF fonts natively). Switch to a TTY, then run `setfont [/path/to/out.psf]` and your new PSF2 font will be loaded. You cannot load a new font from inside tmux, but you can open or attach to tmux once the font is loaded, and everything will be displayed in the new font.
-
-If the new font is broken or displays poorly, `setfont default8x16` will switch to a working font. If `default8x16` isn't present on your system, check `/etc/kbd/consolefonts` for a font that will work.
 
 After switching fonts, all previous text in the TTY might look corrupted (characters are mapped to the wrong glyphs). Don't worry about it, just `clear`. Future text will look fine.
 
