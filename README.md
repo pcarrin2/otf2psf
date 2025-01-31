@@ -46,7 +46,11 @@ After identifying the problem glyph that is too large, you can remove it from th
 
 If the glyphs just look weird, missing parts, lumpy, etc -- you're probably trying to rasterize the font at a size where it can't be rendered pixel-perfectly. Try adjusting the size, and if the situation doesn't improve, choose a different font.
 
-## Charset file format
+## Making a charset file
+
+The `generate_charset.py` script can be used to generate a charset/Unicode table file. At this time, it doesn't support multi-character sequences or equivalent graphemes. However, these can easily be added to the charset file by hand.
+
+### Charset file format
 
 See `example.set` for a valid example charset. Comments beginning with `#` and blank lines are ignored. Each line contains a list of Unicode characters or sequences, which will all be represented by the same glyph in the PSF2 font. 
 
@@ -58,7 +62,7 @@ means that the same glyph should be used to represent the single character `U+00
 
 Generally, each listed Unicode sequence should be a single [grapheme cluster](https://www.unicode.org/reports/tr29/#Grapheme_Cluster_Boundaries). In particular, trying to use this system for ligatures is doomed to failure.
 
-When generating bitmaps, `otf2psf` must pick a "representative grapheme" to render from the input OTF font. For now, it selects the grapheme with the fewest codepoints. (So `U+00E9` with one codepoint beats `U+0065 U+0301` with two.) In case of a tie, the grapheme listed first is selected. I plan on making this behavior customizable in the future.
+When generating bitmaps, `otf2psf` must pick a "representative grapheme" to render from the input OTF font. For now, it selects the grapheme with the fewest codepoints. (So `U+00E9` with one codepoint beats `U+0065 U+0301` with two.) In case of a tie, the grapheme listed first is selected.
 
 ## Using the generated font
 
@@ -88,7 +92,7 @@ Technically you can create a PSF2 font with whatever characters you'd like. Howe
 
 - Due to a nofix kernel bug, blank space in the TTY is filled with the 32nd (0x20th) glyph in the PSF2 font, regardless of whether that glyph is actually mapped to space or not. So the 32nd listed character in your charset should be U+0020 (space).
 - There are kernel-imposed size constraints on the glyphset portion of the font. The kernel can support a maximum of 512 glyphs and a max glyph size of 64x128 pixels.
-- Some very low-level functions, eg SysReq functions, will disregard the font's Unicode mapping table when printing ASCII. For best compatibility, preserve the indices of all ASCII characters in the Unicode table. (For example, the 41st (0x65th) listed character should be `U+0065`, or capital A). I didn't do that in `example.set` because I'm lazy.
+- Some very low-level functions, eg SysReq functions, will disregard the font's Unicode mapping table when printing ASCII. For best compatibility, preserve the indices of all ASCII characters in the Unicode table. (For example, the 41st (0x65th) listed character should be `U+0065`, or capital A). `generate_charset.py` takes care of this by default.
 - I think the kernel is bad at dealing with Unicode sequences. I haven't been able to get it to render `U+0065 U+0301` (or any other multi-codepoint Unicode sequence) properly, for example. However, this could be a problem with how I am serializing the PSF2 Unicode table -- not sure.
 
 Of course, PSF2 fonts may be used by other systems besides the Linux kernel. (For example, other OSes or embedded software.) Each of these systems will have its own requirements, bugs, extra specifications, etc.
