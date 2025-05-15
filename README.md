@@ -42,18 +42,6 @@ Specify a Unicode character set:
 otf2psf convert in.otf out.psf --unicode-table-file my.set
 ```
 
-## Character set file format
-
-See `example.set` for a valid example charset. Comments beginning with `#` and blank lines are ignored. Each line contains a list of Unicode characters or sequences, which will all be represented by the same glyph in the PSF2 font. 
-
-For example, this line:
-```
-U+00E9, U+0065 U+0301
-```
-means that the same glyph should be used to represent the single character `U+00E9` (LATIN SMALL LETTER E WITH ACUTE) and the sequence `U+0065 U+0301` (ASCII lowercase e + combining acute accent).
-
-When generating bitmaps, `otf2psf` must pick a "representative grapheme" to render from the input OTF font. Currently, it selects the grapheme with the fewest codepoints. (So `U+00E9` with one codepoint beats `U+0065 U+0301` with two.) In case of a tie, the grapheme listed first is selected.
-
 ## Troubleshooting
 
 If you get an error that not all characters in the font have the same size, you can use the `--pad` flag to pad out all glyphs to the size of the largest glyph.

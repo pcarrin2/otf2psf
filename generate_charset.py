@@ -123,7 +123,7 @@ def main():
                         text='Pick a Unicode block to add characters from.',
                         values=all_blocks
                         ).run()
-                elif block_raw == None:
+                elif block_raw is None:
                     continue
 
                 block = unicodeblocks.blocks.get(block_raw)
@@ -135,6 +135,10 @@ def main():
                         text='Choose characters to add.',
                         values=char_select_values
                         ).run()
+                
+                if to_add is None:
+                    continue
+
                 if 'ALL' in to_add:
                     to_add = [chr(c) for c in range(block.start, block.end) if is_printable(chr(c))]
 
