@@ -36,7 +36,7 @@ otf2psf convert in.otf out.psf 12
 otf2psf convert in.otf out.psf -g 512
 ```
 
-Specify a Unicode character set:
+Specify a custom character set using a Unicode table:
 
 ```
 otf2psf convert in.otf out.psf --unicode-table-file my.set
@@ -52,17 +52,17 @@ If `--pad` makes most glyphs look way too far apart, try the `report` subcommand
 otf2psf report in.otf --unicode-table-file my.set > report.txt
 ```
 
-After identifying the problem glyph that is too large, you can remove it from the charset or try a different font.
+After identifying the problem glyph that is too large, you can remove it from the Unicode table or try a different font.
 
 If the glyphs just look weird, missing parts, lumpy, etc -- you're probably trying to rasterize the font at a size where it can't be rendered pixel-perfectly. Try adjusting the size, and if the situation doesn't improve, choose a different font.
 
-## Making a charset file
+## Making a Unicode table
 
-The `generate_charset.py` script can be used to generate a charset/Unicode table file. At this time, it doesn't support multi-character sequences or equivalent graphemes. However, these can easily be added to the charset file by hand.
+The `generate_unicode_table.py` script can be used to generate a Unicode table file. At this time, it doesn't support multi-character sequences or equivalent graphemes. However, these can easily be added to the table by hand.
 
-### Charset file format
+### Unicode table file format
 
-See `example.set` for a valid example charset. Comments beginning with `#` and blank lines are ignored. Each line contains a list of Unicode characters or sequences, which will all be represented by the same glyph in the PSF2 font. 
+See `example.set` for a valid example Unicode table. Comments beginning with `#` and blank lines are ignored. Each line contains a list of Unicode characters or sequences, which will all be represented by the same glyph in the PSF2 font. 
 
 For example, this line:
 ```
