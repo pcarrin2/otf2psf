@@ -2,6 +2,11 @@
 name = "otf2psf"
 version = "0.1.0"
 edition = "2021"
+description = "Convert modern OTF/TTF fonts for use on the Linux TTY"
+license = "Unlicense"
+homepage = "https://pcarr.in/writing/projects/otf2psf/"
+repository = "https://git.sfe.dev/pcarr/otf2psf/"
+documentation = "https://git.sfe.dev/pcarr/otf2psf/"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
